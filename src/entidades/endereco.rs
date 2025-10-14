@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Validate)]
-
 pub struct Endereco {
     #[validate(length(min = 8, max = 8, message = "o CEP deve conter 8 digitos"))]
     pub cep: String,

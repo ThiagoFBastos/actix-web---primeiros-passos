@@ -3,8 +3,10 @@ use validator::Validate;
 use std::sync::RwLock;
 
 mod entidades;
+mod detail;
 
 use entidades::{pessoa::Pessoa};
+use detail::error::Error;
 
 #[derive(Debug)]
 struct Database {
@@ -18,7 +20,7 @@ async fn find_pessoa(path: web::Path<String>, state: web::Data<Database>) ->  im
     let pessoa = db.iter().find(|p| p.cpf == cpf);
 
     if pessoa.is_none() {
-        return HttpResponse::NotFound().body("pessoa não encontrada");
+        return HttpResponse::NotFound().json(Error {message: "pessoa não encontrada".to_string()});
     }
 
     HttpResponse::Ok().json(pessoa.unwrap().clone())
@@ -43,7 +45,7 @@ async fn add_pessoa(data: web::Json<Pessoa>, state: web::Data<Database>) -> impl
     let mut db = state.pessoas.write().unwrap();
 
     if db.iter().any(|p| p.cpf == pessoa.cpf) {
-        return HttpResponse::BadRequest().body("cpf já cadastrado");
+        return HttpResponse::BadRequest().json(Error {message: "cpf já cadastrado".to_string()});
     }
 
     db.push(pessoa.clone());
@@ -57,13 +59,17 @@ async fn delete_pessoa(path: web::Path<String>, state: web::Data<Database>) -> i
     
     let mut db = state.pessoas.write().unwrap();
 
-    if !db.iter().any(|p| p.cpf == cpf) {
-        return HttpResponse::NotFound().body("pessoa não encontrada");
+    let pessoa = db.iter().find(|p| p.cpf == cpf);
+
+    if pessoa.is_none() {
+        return HttpResponse::NotFound().json(Error{message: "pessoa não encontrada".to_string()});
     }
+
+    let resultado = pessoa.unwrap().clone();
 
     db.retain(|p| p.cpf != cpf);
 
-    HttpResponse::Ok().body(cpf)
+    HttpResponse::Ok().json(resultado)
 }
 
 #[put("/update/{cpf}")]
@@ -79,9 +85,9 @@ async fn update_pessoa(path: web::Path<String>, data: web::Json<Pessoa>, state: 
     let mut db = state.pessoas.write().unwrap();
 
     if !db.iter().any(|p| p.cpf == cpf) {
-        return HttpResponse::NotFound().body("pessoa não encontrada");
+        return HttpResponse::NotFound().json(Error{message: "pessoa não encontrada".to_string()});
     } else if data.cpf != cpf {
-        return HttpResponse::BadRequest().body("cpf incorreto");
+        return HttpResponse::BadRequest().json(Error{message: "cpf incorreto".to_string()});
     }
 
    db.retain(|p| p.cpf != cpf);
