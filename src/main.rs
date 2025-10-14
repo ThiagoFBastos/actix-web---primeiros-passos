@@ -1,4 +1,5 @@
-use actix_web::{delete, error, get, post, put, web, App, HttpResponse, HttpServer, Responder, Result};
+use actix_web::{delete, get, post, put, web, App, HttpResponse, HttpServer, Responder};
+use validator::Validate;
 use std::sync::RwLock;
 
 mod entidades;
@@ -11,64 +12,76 @@ struct Database {
 }
 
 #[get("/find/{cpf}")]
-async fn find_pessoa(path: web::Path<String>, state: web::Data<Database>) ->  Result<impl Responder> {
+async fn find_pessoa(path: web::Path<String>, state: web::Data<Database>) ->  impl Responder {
     let cpf = path.into_inner();
     let db = state.pessoas.read().unwrap();
     let pessoa = db.iter().find(|p| p.cpf == cpf);
 
     if pessoa.is_none() {
-        return Err(error::ErrorNotFound("pessoa não encontrada"));
+        return HttpResponse::NotFound().body("pessoa não encontrada");
     }
 
-    Ok(web::Json(pessoa.unwrap().clone()))
+    HttpResponse::Ok().json(pessoa.unwrap().clone())
 }
 
 #[get("/all")]
-async fn get_pessoas(state: web::Data<Database>) -> Result<impl Responder> {
+async fn get_pessoas(state: web::Data<Database>) -> impl Responder {
     let db = state.pessoas.read().unwrap();
-    Ok(web::Json(db.clone()))
+    HttpResponse::Ok().json(db.clone())
 }
 
 #[post("/")]
-async fn add_pessoa(path: web::Json<Pessoa>, state: web::Data<Database>) -> Result<impl Responder> {
-    let pessoa = path.into_inner();
+async fn add_pessoa(data: web::Json<Pessoa>, state: web::Data<Database>) -> impl Responder {
+    let valido = data.validate();
+
+    if valido.is_err() {
+        return HttpResponse::BadRequest().json(valido.unwrap_err());
+    }
+
+    let pessoa = data.into_inner();
 
     let mut db = state.pessoas.write().unwrap();
 
     if db.iter().any(|p| p.cpf == pessoa.cpf) {
-        return Err(error::ErrorBadRequest("cpf já cadastrado"));
+        return HttpResponse::BadRequest().body("cpf já cadastrado");
     }
 
     db.push(pessoa.clone());
 
-    Ok(HttpResponse::Created().json(pessoa))
+    HttpResponse::Created().json(pessoa)
 }
 
 #[delete("/delete/{cpf}")]
-async fn delete_pessoa(path: web::Path<String>, state: web::Data<Database>) -> Result<impl Responder> {
+async fn delete_pessoa(path: web::Path<String>, state: web::Data<Database>) -> impl Responder {
     let cpf = path.into_inner();
     
     let mut db = state.pessoas.write().unwrap();
 
     if !db.iter().any(|p| p.cpf == cpf) {
-        return Err(error::ErrorNotFound("pessoa não encontrada"));
+        return HttpResponse::NotFound().body("pessoa não encontrada");
     }
 
     db.retain(|p| p.cpf != cpf);
 
-    Ok(web::Json(cpf))
+    HttpResponse::Ok().body(cpf)
 }
 
 #[put("/update/{cpf}")]
-async fn update_pessoa(path: web::Path<String>, data: web::Json<Pessoa>, state: web::Data<Database>) -> Result<impl Responder>{
+async fn update_pessoa(path: web::Path<String>, data: web::Json<Pessoa>, state: web::Data<Database>) -> impl Responder {
+    let valido = data.validate();
+
+    if valido.is_err() {
+        return HttpResponse::BadRequest().json(valido.unwrap_err());
+    }
+
     let cpf = path.into_inner();
 
     let mut db = state.pessoas.write().unwrap();
 
     if !db.iter().any(|p| p.cpf == cpf) {
-        return Err(error::ErrorNotFound("pessoa não encontrada"));
+        return HttpResponse::NotFound().body("pessoa não encontrada");
     } else if data.cpf != cpf {
-        return Err(error::ErrorBadRequest("cpf incorreto"));
+        return HttpResponse::BadRequest().body("cpf incorreto");
     }
 
    db.retain(|p| p.cpf != cpf);
@@ -77,7 +90,7 @@ async fn update_pessoa(path: web::Path<String>, data: web::Json<Pessoa>, state: 
 
    db.push(pessoa.clone());
 
-   Ok(web::Json(pessoa))
+   HttpResponse::Ok().json(pessoa.clone())
 }
 
 #[actix_web::main]
