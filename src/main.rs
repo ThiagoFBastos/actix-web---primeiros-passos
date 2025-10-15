@@ -1,6 +1,8 @@
 use actix_web::{delete, get, post, put, web, App, HttpResponse, HttpServer, Responder};
 use validator::Validate;
 use std::sync::RwLock;
+use dotenv::dotenv;
+use std::env;
 
 mod entidades;
 mod detail;
@@ -105,6 +107,11 @@ async fn main() -> std::io::Result<()> {
         pessoas: RwLock::new(Vec::new()),
     });
 
+    dotenv().ok();
+    
+    let host = env::var("HOST").ok().unwrap();
+    let port = env::var("PORT").ok().unwrap().parse::<u16>().expect("falha ao converter");
+
     HttpServer::new(move || {
         App::new()
             .app_data(db.clone())
@@ -114,7 +121,7 @@ async fn main() -> std::io::Result<()> {
             .service(delete_pessoa)
             .service(update_pessoa)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind((host, port))?
     .run()
     .await
 }
