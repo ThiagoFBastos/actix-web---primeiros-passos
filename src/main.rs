@@ -1,19 +1,15 @@
 use actix_web::{delete, get, post, put, web, App, HttpResponse, HttpServer, Responder};
 use validator::Validate;
-use std::sync::RwLock;
 use dotenv::dotenv;
 use std::env;
 
 mod entidades;
 mod detail;
+mod database;
 
-use entidades::{pessoa::Pessoa};
+use entidades::pessoa::Pessoa;
 use detail::error::Error;
-
-#[derive(Debug)]
-struct Database {
-    pessoas: RwLock<Vec<Pessoa>>
-}
+use database::Database;
 
 #[get("/find/{cpf}")]
 async fn find_pessoa(path: web::Path<String>, state: web::Data<Database>) ->  impl Responder {
@@ -103,9 +99,7 @@ async fn update_pessoa(path: web::Path<String>, data: web::Json<Pessoa>, state: 
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let db = web::Data::new(Database {
-        pessoas: RwLock::new(Vec::new()),
-    });
+    let db = web::Data::new(Database::new());
 
     dotenv().ok();
     
