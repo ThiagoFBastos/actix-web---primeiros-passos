@@ -18,7 +18,7 @@ async fn find_pessoa(path: web::Path<String>, state: web::Data<Database>) ->  im
     let pessoa = db.iter().find(|p| p.cpf == cpf);
 
     if pessoa.is_none() {
-        return HttpResponse::NotFound().json(Error {message: "pessoa não encontrada".to_string()});
+        return HttpResponse::NotFound().json(Error::new("pessoa não encontrada"));
     }
 
     HttpResponse::Ok().json(pessoa.unwrap().clone())
@@ -43,7 +43,7 @@ async fn add_pessoa(data: web::Json<Pessoa>, state: web::Data<Database>) -> impl
     let mut db = state.pessoas.write().unwrap();
 
     if db.iter().any(|p| p.cpf == pessoa.cpf) {
-        return HttpResponse::BadRequest().json(Error {message: "cpf já cadastrado".to_string()});
+        return HttpResponse::BadRequest().json(Error::new("cpf já cadastrado"));
     }
 
     db.push(pessoa.clone());
@@ -60,7 +60,7 @@ async fn delete_pessoa(path: web::Path<String>, state: web::Data<Database>) -> i
     let pessoa = db.iter().find(|p| p.cpf == cpf);
 
     if pessoa.is_none() {
-        return HttpResponse::NotFound().json(Error{message: "pessoa não encontrada".to_string()});
+        return HttpResponse::NotFound().json(Error::new("pessoa não encontrada"));
     }
 
     let resultado = pessoa.unwrap().clone();
@@ -83,9 +83,9 @@ async fn update_pessoa(path: web::Path<String>, data: web::Json<Pessoa>, state: 
     let mut db = state.pessoas.write().unwrap();
 
     if !db.iter().any(|p| p.cpf == cpf) {
-        return HttpResponse::NotFound().json(Error{message: "pessoa não encontrada".to_string()});
+        return HttpResponse::NotFound().json(Error::new("pessoa não encontrada"));
     } else if data.cpf != cpf {
-        return HttpResponse::BadRequest().json(Error{message: "cpf incorreto".to_string()});
+        return HttpResponse::BadRequest().json(Error::new("cpf incorreto"));
     }
 
    db.retain(|p| p.cpf != cpf);
