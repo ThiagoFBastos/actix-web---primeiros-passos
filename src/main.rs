@@ -107,13 +107,15 @@ async fn main() -> std::io::Result<()> {
     let port = env::var("PORT").ok().unwrap().parse::<u16>().expect("falha ao converter");
 
     HttpServer::new(move || {
-        App::new()
-            .app_data(db.clone())
-            .service(find_pessoa)
-            .service(get_pessoas)
-            .service(add_pessoa)
-            .service(delete_pessoa)
-            .service(update_pessoa)
+        App::new().service(
+            web::scope("/api")
+                .app_data(db.clone())
+                .service(find_pessoa)
+                .service(get_pessoas)
+                .service(add_pessoa)
+                .service(delete_pessoa)
+                .service(update_pessoa)
+        )
     })
     .bind((host, port))?
     .run()
