@@ -1,0 +1,92 @@
+
+use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
+use validator::Validate;
+use crate::entidades::pessoa::Pessoa;
+use crate::detail::error::Error;
+use crate::database::Database;
+
+#[get("/find/{cpf}")]
+pub async fn find_pessoa(path: web::Path<String>, state: web::Data<Database>) ->  impl Responder {
+    let cpf = path.into_inner();
+    let db = state.pessoas.read().unwrap();
+    let pessoa = db.iter().find(|p| p.cpf == cpf);
+
+    if pessoa.is_none() {
+        return HttpResponse::NotFound().json(Error::new("pessoa não encontrada"));
+    }
+
+    HttpResponse::Ok().json(pessoa.unwrap().clone())
+}
+
+#[get("/all")]
+pub async fn get_pessoas(state: web::Data<Database>) -> impl Responder {
+    let db = state.pessoas.read().unwrap();
+    HttpResponse::Ok().json(db.clone())
+}
+
+#[post("/")]
+pub async fn add_pessoa(data: web::Json<Pessoa>, state: web::Data<Database>) -> impl Responder {
+    let valido = data.validate();
+
+    if valido.is_err() {
+        return HttpResponse::BadRequest().json(valido.unwrap_err());
+    }
+
+    let pessoa = data.into_inner();
+
+    let mut db = state.pessoas.write().unwrap();
+
+    if db.iter().any(|p| p.cpf == pessoa.cpf) {
+        return HttpResponse::BadRequest().json(Error::new("cpf já cadastrado"));
+    }
+
+    db.push(pessoa.clone());
+
+    HttpResponse::Created().json(pessoa)
+}
+
+#[delete("/delete/{cpf}")]
+pub async fn delete_pessoa(path: web::Path<String>, state: web::Data<Database>) -> impl Responder {
+    let cpf = path.into_inner();
+    
+    let mut db = state.pessoas.write().unwrap();
+
+    let pessoa = db.iter().find(|p| p.cpf == cpf);
+
+    if pessoa.is_none() {
+        return HttpResponse::NotFound().json(Error::new("pessoa não encontrada"));
+    }
+
+    let resultado = pessoa.unwrap().clone();
+
+    db.retain(|p| p.cpf != cpf);
+
+    HttpResponse::Ok().json(resultado)
+}
+
+#[put("/update/{cpf}")]
+pub async fn update_pessoa(path: web::Path<String>, data: web::Json<Pessoa>, state: web::Data<Database>) -> impl Responder {
+    let valido = data.validate();
+
+    if valido.is_err() {
+        return HttpResponse::BadRequest().json(valido.unwrap_err());
+    }
+
+    let cpf = path.into_inner();
+
+    let mut db = state.pessoas.write().unwrap();
+
+    if !db.iter().any(|p| p.cpf == cpf) {
+        return HttpResponse::NotFound().json(Error::new("pessoa não encontrada"));
+    } else if data.cpf != cpf {
+        return HttpResponse::BadRequest().json(Error::new("cpf incorreto"));
+    }
+
+   db.retain(|p| p.cpf != cpf);
+
+   let pessoa = data.into_inner();
+
+   db.push(pessoa.clone());
+
+   HttpResponse::Ok().json(pessoa.clone())
+}
